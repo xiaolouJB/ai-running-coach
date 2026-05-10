@@ -166,3 +166,13 @@ ai-running-coach/
 ---
 
 *AI Running Coach v1.2.0 · 基于 Claude Skill 协议构建*
+
+---
+
+## 版权说明
+
+© 2026 [xiaolouJB](https://github.com/xiaolouJB)
+
+本项目以 **CC BY 4.0** 协议开放分享：你可以自由使用、修改和再分发，**但必须注明来源**：
+
+> 原项目：[https://github.com/xiaolouJB/ai-running-coach](https://github.com/xiaolouJB/ai-running-coach)
