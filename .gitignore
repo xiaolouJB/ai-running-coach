@@ -1,0 +1,18 @@
+# ── 个人课表（只保留示例文件）──
+schedules/*
+!schedules/example_schedule.md
+!schedules/.gitkeep
+
+# ── 个人训练原始数据（.fit 文件）──
+训练数据/
+
+# ── 操作系统产生的临时文件 ──
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── 编辑器临时文件 ──
+.vscode/
+.idea/
+*.swp
+*.swo
