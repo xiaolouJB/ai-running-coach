@@ -1,4 +1,5 @@
-# ── 个人课表（只保留示例文件）──
+# ── 个人课表 & 打卡图（只保留示例文件）──
+# 包含个人数据的文件：*_schedule.md / *_weekly_checkin_*.html 等均被此规则覆盖
 schedules/*
 !schedules/example_schedule.md
 !schedules/.gitkeep
