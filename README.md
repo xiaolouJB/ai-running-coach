@@ -126,7 +126,9 @@ ai-running-coach/
 ├── USER_GUIDE.md         # 用户操作手册（所有用户必读）
 ├── 快捷指令.md            # 四大场景快捷模板（复制即用）
 ├── SKILL.md              # AI 教练核心规范（AI 自动读取）
-├── THEORY_LIBRARY.md     # 训练理论知识库（可用户扩展）
+├── THEORY_LIBRARY.md     # 训练理论知识库大纲（v2.1+）
+├── knowledge_cards/      # 分层知识卡片库（伤病/力量/营养，AI 按需路由调用）
+├── rebuild_vectordb.py   # 本地高级用户重构向量库脚本
 ├── ADAPTERS.md           # 设备适配器配置（开发者参考）
 ├── CONTRIBUTING.md       # 贡献指南（开发者）
 ├── 赘肉.md               # 归档内容（AI 不读取）
@@ -166,4 +168,4 @@ ai-running-coach/
 
 ---
 
-*AI Running Coach v1.2.0 · 基于 Claude Skill 协议构建*
+*AI Running Coach v2.1.0 · 基于 Claude Skill 协议构建*
