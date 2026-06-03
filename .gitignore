@@ -1,0 +1,42 @@
+# ── 个人课表 & 打卡图（只保留示例文件）──
+# 包含个人数据的文件：*_schedule.md / *_weekly_checkin_*.html 等均被此规则覆盖
+schedules/*
+!schedules/example_schedule.md
+!schedules/.gitkeep
+
+# ── 个人训练原始数据（.fit 文件）──
+训练数据/
+
+# ── 操作系统产生的临时文件 ──
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── 编辑器临时文件 ──
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── 版权内容 - 禁止公开（书籍原文及衍生物）──
+理论/跑步理论库/
+理论/伤病康复库/
+理论/力量体能库/
+理论/运动营养库/
+理论/processed_chunks/
+理论/vector_db/
+理论/_epub_extract/
+理论/_higdon_extract/
+理论/_heat_all.txt
+理论/_heat_raw.txt
+理论/_heat_grep.txt
+理论/_heat_grep_2.txt
+理论/_vdot_raw.txt
+
+# ── 认证凭证 ──
+_encoded_cookies.txt
+
+# ── Python 缓存 ──
+__pycache__/
+*.pyc
+*.pyo
