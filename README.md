@@ -1,8 +1,65 @@
 # AI Running Coach
 
-> 基于 Claude + 高驰 MCP 的智能跑步训练系统，理论驱动 · 数据实时 · 课表动态调整
+> An AI running coach built on classic training science — reads your COROS watch data, estimates your fitness, and generates marathon plans that adapt week by week. Runs as a skill on Claude (or any capable LLM in manual mode).
+>
+> 基于 Claude + 高驰 MCP 的智能跑步训练系统，理论驱动 · 数据实时 · 课表动态调整（[中文文档见下半部分](#ai-running-coach-中文)）
 
 ---
+
+## What is this?
+
+This repo is the **open methodology layer** behind [Pacer](https://pacer.xiaolou.space/en), a hosted AI running coach. Everything the coach "believes" about training lives here in auditable form: the workflow rules, the pace/load math conventions, and a structured knowledge-card library covering injury rehab, strength work, and race nutrition.
+
+You can run it yourself as a **Claude skill**: it reads your training history from a COROS watch via COROS's official MCP server (read-only), estimates your VDOT from real runs (no time-trial needed), and generates a race training plan built on three classic methodologies — then re-scores and adjusts it every week based on what you actually ran.
+
+**Core ideas:**
+
+- ⌚ **No file uploads** — activity and physiological data come straight from the watch via MCP.
+- 🧠 **Structured knowledge cards** — injury triage (Level 0–2 grading), strength sessions, and race-day nutrition are routed from in-repo cards, not hallucinated.
+- 🏃 **VDOT from history** — fitness is estimated from your real runs; no all-out test required.
+- 📅 **One-line weekly update** — one prompt scores last week's execution, checks fatigue, and adjusts next week.
+- 🛡️ **Safety over compliance** — resting-HR / HRV red flags and the 10% mileage rule are enforced, not suggested.
+- 🌍 **Fully redistributable** — no copyrighted source material included; clone it and run your own coach.
+
+## Quick start (English)
+
+1. **Model**: use a strong model for plan generation (Claude Opus/Sonnet class). Weaker models are fine for day-to-day analysis.
+2. **Install the COROS MCP** (~3 min) — in Claude Code / Claude Desktop, add the MCP server `https://mcpcn.coros.com/mcp`, then confirm `coros` shows up under `/mcp`. No COROS watch? Manual mode works: paste your training data instead.
+3. **Generate your plan** — send:
+
+```
+Initialize the AI running coach. Read my last 6 weeks of COROS training data and build my plan.
+
+About me:
+- Goal race: [half marathon / marathon]
+- Target time: [e.g. 1:45:00]
+- Training days per week: [e.g. 4]
+- Race date: [e.g. 2026-11-15]
+```
+
+4. **Each week** — just say: `Update this week's training data`.
+
+## Training theory
+
+| Theory | Source | What it contributes |
+|--------|--------|---------------------|
+| VDOT system | Jack Daniels, *Daniels' Running Formula* (2013) | Precise five-zone pace prescription |
+| Cumulative fatigue | Luke Humphrey, *Hansons Marathon Method* (2012) | Sane long-run ceilings |
+| 80/20 intensity split | Matt Fitzgerald, *80/20 Running* (2014) | Keeps you out of the gray zone |
+| 10% progression rule | Hal Higdon, *Marathon* (2011) | Safe ramp-up and taper |
+
+## This repo vs. Pacer (the hosted app)
+
+- **This repo** = the methodology, as a self-hostable skill. Bring your own LLM; your data stays in your own Claude/COROS accounts.
+- **[Pacer](https://pacer.xiaolou.space/en)** = the same logic productized: one-tap COROS sign-in (official OAuth, read-only), deterministic pace/load math in code (the LLM never does arithmetic), weekly auto-review, weather- and readiness-aware daily advice. Free while early.
+
+> **Language note**: the detailed docs below are currently in Chinese (an English pass is in progress). The skill itself works fine in English conversations — the coach replies in whatever language you use.
+
+---
+
+<a name="ai-running-coach-中文"></a>
+
+# AI Running Coach（中文）
 
 ## 这是什么
 
