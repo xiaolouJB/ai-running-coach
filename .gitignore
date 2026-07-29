@@ -19,22 +19,24 @@ desktop.ini
 *.swo
 
 # ── 版权内容 - 禁止公开（书籍原文及衍生物）──
-理论/跑步理论库/
-理论/伤病康复库/
-理论/力量体能库/
-理论/运动营养库/
-理论/processed_chunks/
-理论/vector_db/
-理论/_epub_extract/
-理论/_higdon_extract/
-理论/_heat_all.txt
-理论/_heat_raw.txt
-理论/_heat_grep.txt
-理论/_heat_grep_2.txt
-理论/_vdot_raw.txt
+# 整个 理论/ 目录一律不进仓库：不只是抽取产物，连抽取脚本本身也含书籍文件名与本地路径。
+# （曾差点把 理论/extract_heat.py、理论/fix_nutrition_chunks.py 提交进公开仓库）
+理论/
 
 # ── 认证凭证 ──
 _encoded_cookies.txt
+*_token*
+*credential*
+.env*
+*cookies*
+
+# ── 个人训练数据产物（parse_fit.py 的输出与本地分析脚本）──
+# 这些是「你自己的」跑步记录，绝不应进公开仓库
+runs.csv
+all_runs.csv
+*_runs.csv
+workouts/
+detailed_analysis.py
 
 # ── Python 缓存 ──
 __pycache__/

@@ -186,7 +186,7 @@ ai-running-coach/
 ├── SKILL.md              # AI 教练核心规范（AI 自动读取）
 ├── THEORY_LIBRARY.md     # 训练理论知识库大纲（v2.1+）
 ├── knowledge_cards/      # 分层知识卡片库（伤病/力量/营养，AI 按需路由调用）
-├── rebuild_vectordb.py   # 本地高级用户重构向量库脚本
+├── parse_fit.py          # 本地 FIT 文件解析工具（手动模式入口）
 ├── ADAPTERS.md           # 设备适配器配置（开发者参考）
 ├── CONTRIBUTING.md       # 贡献指南（开发者）
 ├── 赘肉.md               # 归档内容（AI 不读取）
