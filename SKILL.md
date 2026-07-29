@@ -4,7 +4,7 @@ description: |
   AI 智能跑步教练。当用户提到：制定跑步/马拉松训练计划、更新本周训练数据、
   分析高驰/佳明运动数据、复盘训练、课表调整、VDOT评估、HRV恢复、备赛等关键词时触发。
   依赖 COROS MCP（或其他已配置的运动设备 MCP）自动拉取运动数据。
-version: 2.0.0
+version: 2.2.0
 author: community
 license: MIT
 adapters: [coros, garmin-placeholder]
@@ -105,19 +105,22 @@ review_config:
 
 AI 通过抽象工具名调用数据，适配器映射到具体 MCP 工具。完整映射见 [ADAPTERS.md](ADAPTERS.md)。
 
-| 抽象工具名 | COROS 工具 | 状态 |
-|-----------|-----------|------|
-| `GET_SPORT_RECORDS` | `querySportRecords` | ✅ |
-| `GET_FITNESS_ASSESSMENT` | `queryFitnessAssessmentOverview` | ✅ |
-| `GET_RECOVERY_STATUS` | `queryRecoveryStatus` | ✅ |
-| `GET_HRV` | `queryHrvAssessment` | ✅ |
-| `GET_TRAINING_LOAD` | `queryTrainingLoadAssessment` | ✅ |
-| `GET_SLEEP` | `querySleepData` | ✅ |
-| `GET_RESTING_HR` | `queryRestingHeartRate` | ✅ |
-| `GET_USER_INFO` | `queryUserInfo` | ✅ |
-| `GET_ACTIVITY_DETAIL` | `getActivityDetail` | ✅ |
+| 抽象工具名 | COROS 工具 | 状态 | 说明 |
+|-----------|-----------|------|------|
+| `GET_SPORT_RECORDS` | `querySportRecords` | ✅ | 活动列表 |
+| `GET_FITNESS_ASSESSMENT` | `queryFitnessAssessmentOverview` | ✅ | 综合体能评估与 VO2max |
+| `GET_RECOVERY_STATUS` | `queryRecoveryStatus` | ✅ | 恢复状态评估 |
+| `GET_HRV` | `querySleepHrv` | ✅ | HRV 日均与趋势（旧工具 `queryHrvAssessment` 已删除） |
+| `GET_TRAINING_LOAD` | `queryTrainingLoadAssessment` | ✅ | 官方训练负荷与 Load Ratio (ACWR) |
+| `GET_SLEEP` | `querySleepData` | ✅ | 睡眠质量数据 |
+| `GET_RESTING_HR` | `queryRestingHeartRate` | ✅ | 静息心率趋势 |
+| `GET_USER_INFO` | `queryUserInfo` | ✅ | 用户基础信息 |
+| `GET_ACTIVITY_DETAIL` | `getActivityDetail` | ✅ | 运动详情（含 Perceived Effort 主观 RPE） |
+| `GET_ACTIVITY_LAP_DATA` | `queryActivityLapData` | ✅ | 逐圈分段数据 |
+| `GET_FIT_DOWNLOAD_URLS` | `queryActivityFitFileDownloadUrls` | ✅ | OSS FIT 直链（限 50 文件/日） |
+| `GET_MENSTRUATION_CYCLES` | `queryMenstruationCycles` | ✅ | 月经周期相位预测 |
 
-> ⚠️ **主观感受字段**：COROS MCP 当前仅返回客观指标（配速/心率/步频/训练负荷），不含 RPE 或用户备注。AI 在 Workflow B/D 中主动询问，结果存入课表「感受」列。
+> ⚠️ **主观感受字段**：`getActivityDetail` 工具的 `Perceived Effort` 字段可能包含主观 RPE。AI 必须先读取该字段，读取到数据即直接采用（并标注来源），若设备未记录再向用户发起提问，结果存入课表「感受」列。
 
 ---
 
@@ -130,7 +133,7 @@ AI 通过抽象工具名调用数据，适配器映射到具体 MCP 工具。完
 
 硬性规则（不可绕过）：
   ① 周跑量增幅 > 10%         → 截断至 10%，标注 ⚠️
-  ② 短期负荷比 ATL/CTL > 1.5 → 次日强制插入 E 跑或休息
+  ② 优先采用 queryTrainingLoadAssessment 返回的官方 Load Ratio（现成 ACWR），其 > 1.5 时次日强制插入 E 跑或休息；无官方 Load Ratio 时才以 ATL/CTL > 1.5 自算替代（两者不得混用）
   ③ E 跑心率持续超上限        → 降配速，不降距离
   ④ SOS 连续三天              → 第三天强制改为 E 跑（汉森禁止规则）
   ⑤ 三方建议量不同            → 取中间值，备注理由
@@ -223,9 +226,8 @@ Step 3  统一偏差处理框架（情况 A-E）：
 Step 4  更新 schedule.md 执行状态：
           ⏳ → ✅ [达成率 X%] - AI评：{具体评语，客观陈述事实}
           ⏳ → ❌ 未执行 - 备注：{跳过原因}
-Step 5  评估主观感受（若 ask_rpe_on_review=true，在输出报告末尾询问）：
-          「本周哪次训练感觉最累？请给当时感受打分（1-10，10=极限）」
-          用户回复后写入对应训练行的「感受」列
+Step 5  评估主观感受：
+          AI 先读取设备 RPE（getActivityDetail 之 Perceived Effort 字段），若已有记录则直接写入 schedule.md（标注设备来源）；若缺失才向用户询问：「本周哪次训练感觉最累？请给当时感受打分（1-10，10=极限）」，用户回复后写入对应训练行的「感受」列
 Step 6  Level 1 检查（紧急保护）：
           HRV 低于基线 hrv_drop_pct% OR 静息心率超基线 rhr_spike_bpm
           → 下周第一天插入恢复日，changelog 记录「Level 1 保护触发」
@@ -327,7 +329,7 @@ Step 6  输出赛前建议（含装备/营养/配速策略）：
 
 ```
 Step 1  根据语义识别复盘粒度（见上表）
-Step 2  拉取对应时间范围的 GET_SPORT_RECORDS
+Step 2  拉取对应时间范围的 GET_SPORT_RECORDS + GET_ACTIVITY_LAP_DATA（分段数据）
         周复盘额外拉取：GET_TRAINING_LOAD + GET_RECOVERY_STATUS + GET_HRV
         滚动复盘额外拉取：GET_SLEEP + GET_RESTING_HR
 Step 3  数据去重：本次更新条目与自然周条目重叠时，只计一次
@@ -337,7 +339,8 @@ Step 5  分析维度：
           周复盘：类型完成清单 / 强度分布（80/20核查）/ Level 1-2 指标 / VDOT趋势
           滚动：长期训练负荷曲线 / HRV趋势 / 睡眠质量 / 疲劳积累评估
           长期洞察（7维度面板）：VDOT进步曲线、有氧效率演进、训练负荷平衡、伤病/中断事件线、跑步经济性、训练一致性、体能年龄对比
-Step 6  主观感受采集（若 ask_rpe_on_review=true）：
+Step 6  主观感受采集：
+          先读取设备 RPE（getActivityDetail 之 Perceived Effort），缺失时才询问主观感受：
           单次：「这次跑完感觉怎么样？1-10分（10=极限）」
           周复盘：「本周哪次最累？整体状态如何？」
           用户回复后写入 schedule.md 对应行的「感受」列
@@ -566,30 +569,23 @@ MCP（Model Context Protocol）是自动从手表拉取数据的关键协议。�
 | **Claude 桌面应用（Desktop App）** | ✅ 完整支持 | ✅ | ⭐⭐⭐ 首选 |
 | **Claude 网页版（claude.ai）** | ⚠️ 需手动配置集成 | ✅ | ⭐⭐ |
 | **Cursor / Windsurf / Zed 等 IDE** | ✅ 支持 MCP 插件 | ✅ | ⭐⭐ 适合开发者 |
-| **其他 AI 工具（Gemini、DeepSeek、Kimi 等）** | ❌ 暂不支持 MCP | ✅ 手动模式 | ⭐ 功能受限 |
+| **其他 AI 工具** | ❌ 暂不支持 MCP | ✅ 手动模式 | ⭐ 功能受限 |
 
-> **无 MCP 降级说明**：用户手动粘贴运动数据，AI 仍可分析并生成课表，但无法每周自动同步手表数据。手动模式下，快捷指令.md 的「场景二」需由用户自行粘贴当周数据。
+> **无 MCP 降级说明**：用户手动粘贴运动数据，AI 仍可分析并生成课表，但无法每周自动同步手表数据。手动模式下，快捷指令.md 的「场景二」需由用户自行粘贴当周数据（或通过 `parse_fit.py` 解析）。
 
 ---
 
-### 各主流模型能力对比
+### AI 模型能力档位划分
 
-以下评级基于「生成 15 周结构化课表 + 理论分析 + 数据驱动调整」的实际需求。  
-MCP 列表示能否自动同步手表数据；无 MCP 时需手动粘贴训练数据。
+模型评级基于「生成 15 周结构化课表 + 理论分析 + 数据驱动调整」的实际需求，按能力档位分类描述：
 
-| 模型 | 提供方 | MCP | 课表生成 | 日常分析 | 中文 | 适用场景 |
-|------|--------|:---:|:-------:|:-------:|:----:|---------|
-| **claude-opus-4-7** 【推荐】 | Anthropic | ✅ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ | 生成完整课表首选，推理最强 |
-| **claude-sonnet-4-6** 【推荐】 | Anthropic | ✅ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ | 日常更新主力，速度与质量均衡 |
-| claude-haiku-4-5 | Anthropic | ✅ | ⭐ | ⭐⭐ | ⭐⭐ | 仅适合简单查询，不建议生成课表 |
-| **Gemini 2.5 Pro** 【推荐】 | Google | ❌ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ | 手动模式下生成课表最佳替代 |
-| Gemini 2.5 Flash | Google | ❌ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐ | 速度快，手动模式日常更新 |
-| **DeepSeek V3** 【推荐】 | 深度求索 | ❌ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | 国内手动模式首选，结构化输出优秀 |
-| DeepSeek R1 | 深度求索 | ❌ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | 推理型，适合复盘分析，不适合长表格 |
-| Kimi k2 | 月之暗面 | ❌ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | 超长上下文，中文自然，阅读课表流畅 |
-| Qwen3（通义千问）| 阿里云 | ❌ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | 支持思考模式，中文表达流畅 |
-| GPT-4o | OpenAI | ❌ | ⭐⭐ | ⭐⭐ | ⭐⭐ | 通用强，但长结构输出稳定性不如 Claude |
-| 文心一言（基础版）、豆包等 | 国内各厂 | ❌ | ⭐ | ⭐ | ⭐⭐⭐ | 不推荐：推理和结构化输出不足 |
+| 能力档位 | 上下文与推理要求 | 适用场景 | 说明 |
+|---|---|---|---|
+| **旗舰推理档** | 具备长文本结构化输出能力（输出 ≥ 32k tokens）及深度逻辑推理能力 | 生成 15 周全程课表、赛前深度分析 | 保证 100+ 行结构化表格不截断、逻辑自洽 |
+| **均衡档** | 具备良好的表格渲染能力与快速推理速度 | 周例行更新、日常单次/周复盘 | 速度与质量平衡，适合例行交互 |
+| **轻量档** | 基础对话能力，长结构化输出易截断 | 仅限快速问答与基础数据查询 | **不建议用于生成全程课表** |
+
+> *注：最后核对日期：2026-07。模型迭代迅速，请以各厂商当前旗舰模型为准。*
 
 ---
 
@@ -598,37 +594,33 @@ MCP 列表示能否自动同步手表数据；无 MCP 时需手动粘贴训练�
 **执行 Workflow A（全程课表生成）前，AI 必须先自检：**
 
 ```
-检查项 1：当前模型是否在「A级完整支持」或「B级可用」列表中
-检查项 2：上下文窗口是否支持完整课表输出（建议 ≥ 32k tokens 输出能力）
+检查项 1：当前模型是否具备「旗舰推理档」能力（输出 token 限制与长结构化表格生成）
+检查项 2：上下文窗口是否满足完整课表与理论库上下文需求
 
 若任一检查不满足：
   → 停止生成，告知用户：
-    「当前使用的模型（[模型名]）不适合生成完整训练计划。
+    「当前使用的模型不适合生成完整训练计划。
      15周全程课表需要输出 100+ 行结构化内容并进行深度理论分析，
-     在当前模型下可能出现内容截断或质量下降。
-     推荐切换至以下模型后重试：
-     - 首选：Claude Opus 4.7（含 MCP 自动同步）
-     - 备选：Claude Sonnet 4.6 / Gemini 2.5 Pro / DeepSeek V3」
-  → 提供替代：可先生成第1-4周的基础期课表预览
+     在轻量或非旗舰模型下可能出现内容截断或质量下降。
+     推荐切换至各厂商旗舰推理档模型（具备 MCP 或支持长结构化输出）后重试。」
+  → 提供替代：可先生成第 1-4 周的基础期课表预览
 
 若检查通过：
   → 正常执行 Workflow A，不降低输出质量
 ```
 
-### 最佳配置推荐
+---
 
-```
-# 完整功能（MCP 自动同步 + 高质量课表）
-环境：Claude Code 桌面版 或 Claude 桌面应用
-生成课表：claude-opus-4-7
-日常更新：claude-sonnet-4-6
-MCP：https://mcpcn.coros.com/mcp
+## S12 · 反臆造工程准则
 
-# 手动模式（无 MCP，需自行粘贴训练数据）
-国际用户：Gemini 2.5 Pro 或 GPT-4o
-国内用户：DeepSeek V3（首选）或 通义千问 Qwen3
-```
+为保证 AI 教练输出的可靠性与确定性，AI 必须严格遵守以下四条工程准则：
+
+1. **接地优先于历史**：权威事实（当前课表状态、今日数据）必须在当前这一轮重述，不得依赖对话历史里的旧版本偏置；课表调整后尤其如此。
+2. **确定性算术走脚本**：凡有精确公式的算术（VDOT 查表、出汗率、补给量计算等）一律调用仓库内纯函数脚本（如 `vdot_calculator.py`），LLM 只复述脚本返回结果，不做心算。
+3. **查表越界必须报错**：调用查表或算法脚本时，一旦输入值超出该表的支持范围，必须抛出明确报错并说明「输入值是多少、支持范围是多少、建议核对输入」，严禁静默钳制或悄悄取最近边界值。**范围以脚本从表中实际读出的上下界为准，不在文档里写死数字**（写死会随表更新而过期）。
+4. **无数据不推断**：缺乏数据支撑的字段说清「缺哪个、为什么算不了、怎么补」，不填默认值，不做推断性结论。
 
 ---
 
 *关联文件：[USER_GUIDE.md](USER_GUIDE.md) · [ADAPTERS.md](ADAPTERS.md) · [THEORY_LIBRARY.md](THEORY_LIBRARY.md) · [快捷指令.md](快捷指令.md)*
+

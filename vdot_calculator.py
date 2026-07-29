@@ -192,7 +192,8 @@ def parse_time(time_str: str) -> int:
 def lookup_vdot(distance: str, time_seconds: int) -> int:
     """
     根据比赛距离和完赛时间，查表返回最接近的 VDOT 值。
-    采用线性插值，取最近整数。
+    若成绩超出 VDOT 表支持范围，抛出 ValueError，严禁静默钳制。
+    上下界从 VDOT_TABLE 实际读出（当前 30 ~ 65），表更新后自动跟随，不写死。
     """
     dist_key = None
     for key in ["5K", "10K", "half", "full"]:
@@ -205,6 +206,19 @@ def lookup_vdot(distance: str, time_seconds: int) -> int:
         dist_key = "full"
     if not dist_key:
         raise ValueError(f"不支持的距离: {distance}。支持: 5K, 10K, 半马/half, 全马/full")
+
+    # 边界检查 (VDOT 最小值为最慢，最大值为最快)
+    min_vdot = min(VDOT_TABLE.keys())
+    max_vdot = max(VDOT_TABLE.keys())
+    slowest_time = VDOT_TABLE[min_vdot]["race"][dist_key]
+    fastest_time = VDOT_TABLE[max_vdot]["race"][dist_key]
+
+    if time_seconds > slowest_time or time_seconds < fastest_time:
+        raise ValueError(
+            f"输入成绩 {format_time(time_seconds)} 超出 VDOT 对照表支持范围 "
+            f"(VDOT {min_vdot}~{max_vdot}, {dist_key} 支持范围: {format_time(fastest_time)} ~ {format_time(slowest_time)})。"
+            f"请核对距离与成绩是否填错。"
+        )
 
     # 找到最接近的 VDOT
     sorted_vdots = sorted(VDOT_TABLE.keys())
@@ -221,19 +235,24 @@ def lookup_vdot(distance: str, time_seconds: int) -> int:
 
 
 def get_training_paces(vdot: int) -> dict:
-    """根据 VDOT 返回五区训练配速"""
-    # 如果精确值不在表中，取最近的
-    sorted_vdots = sorted(VDOT_TABLE.keys())
-    if vdot not in VDOT_TABLE:
-        closest = min(sorted_vdots, key=lambda v: abs(v - vdot))
-        vdot = closest
+    """根据 VDOT 返回五区训练配速。超出支持范围抛出 ValueError。"""
+    min_vdot = min(VDOT_TABLE.keys())
+    max_vdot = max(VDOT_TABLE.keys())
+    if vdot < min_vdot or vdot > max_vdot:
+        raise ValueError(f"VDOT 数值 {vdot} 超出对照表支持范围 ({min_vdot} ~ {max_vdot})。请核对输入数值。")
 
-    data = VDOT_TABLE[vdot]
+    sorted_vdots = sorted(VDOT_TABLE.keys())
+    actual_vdot = vdot
+    if vdot not in VDOT_TABLE:
+        actual_vdot = min(sorted_vdots, key=lambda v: abs(v - vdot))
+
+    data = VDOT_TABLE[actual_vdot]
     paces = data["pace"]
     e_min, e_max = paces["E"]
 
     return {
-        "vdot": vdot,
+        "vdot": actual_vdot,
+        "requested_vdot": vdot,
         "E_zone": f"{format_pace(e_min)} ~ {format_pace(e_max)}",
         "M_pace": format_pace(paces["M"]),
         "T_pace": format_pace(paces["T"]),
