@@ -206,4 +206,4 @@ ai-running-coach/
 
 ---
 
-*AI Running Coach v2.2.0 · 基于 Claude Skill 协议构建*
+*AI Running Coach v3.0.0 · 基于 Claude Skill 协议构建*

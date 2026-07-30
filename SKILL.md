@@ -4,7 +4,7 @@ description: |
   AI 智能跑步教练。当用户提到：制定跑步/马拉松训练计划、更新本周训练数据、
   分析高驰/佳明运动数据、复盘训练、课表调整、VDOT评估、HRV恢复、备赛等关键词时触发。
   依赖 COROS MCP（或其他已配置的运动设备 MCP）自动拉取运动数据。
-version: 2.3.0
+version: 3.0.0
 author: community
 license: MIT
 adapters: [coros, garmin-placeholder]
@@ -113,6 +113,12 @@ weather:
 menstrual:
   optin: false              # 默认关，须由用户显式开启
 
+# ── 力量训练偏好配置 ──
+strength:
+  equipment: null        # 器材档位: none (无器材) / minimal (小器械) / gym (健身房)；null = 不过滤
+  banned: []             # 拉黑的动作 ID 列表 (如 ["bulgarian_split_squat"])
+  level: "entry"         # 阶段剂量档: entry (入门) / progress (进阶) / advanced (高阶)
+
 # ── 复盘配置 ──
 review_config:
   rolling_window_days: 14     # 「最近状态」类查询的默认滚动窗口（天）
@@ -162,6 +168,7 @@ AI 通过抽象工具名调用数据，适配器映射到具体 MCP 工具。完
   ⑥ 无数据不推断              → 没有实际数据支撑的字段，AI 不填充默认值、
                                  不做推断性结论。只引导用户在合适时机收集数据。
   ⑦ 伤病处理                  → 参照 INJURY_MODULE.md 的分级标准和降级协议执行。
+  ⑧ 确定性算术一律调脚本      → 涉及 VDOT、准备度及水合营养等确定性计算，必须统一调用 vdot_calculator.py / readiness_calc.py / nutrition_calc.py，AI 只复述结果，禁止自行做乘除运算。
 ```
 
 ---
@@ -187,14 +194,22 @@ knowledge_routing:
     → knowledge_cards/伤病/生物力学缺陷修正.md
   
   # 力量场景
-  生成含力量日的课表 (Workflow A/B):
-    → knowledge_cards/力量/ (根据训练阶段选取下肢/后侧链/核心卡片)
+  生成含力量日的课表 (Workflow A/B) 或力量复盘:
+    → knowledge_cards/力量/动作库.md
+    → knowledge_cards/力量/动作指引.md
+    → knowledge_cards/力量/分期方案.md
+  用户提及力量日旧分类 [下肢/后侧链/核心/周期]:
+    → knowledge_cards/力量/下肢单边训练.md (索引页)
+    → knowledge_cards/力量/后侧链训练.md (索引页)
+    → knowledge_cards/力量/核心稳定训练.md (索引页)
+    → knowledge_cards/力量/力量周期规划.md (索引页)
 
   # 营养场景
-  Workflow C 赛前深度分析 Step 6:
+  Workflow C 赛前深度分析 Step 6 / 赛前碳水装载:
+    → 调用 nutrition_calc.py::fueling_plan
     → knowledge_cards/营养/赛前碳水装载.md
-    → knowledge_cards/营养/长跑中补给.md
-  Workflow B Step 7d 补给数据收集引导:
+  Workflow B Step 7d 补给数据收集引导 / 出汗率及跑中水合:
+    → 调用 nutrition_calc.py::sweat_rate_ml_h / hydration_plan
     → knowledge_cards/营养/长跑中补给.md
 ```
 
@@ -322,9 +337,9 @@ Step 7  Level 2 评估（每周调整 · 归因分析）：
               连续 2 周良好 → 下周配速上调 5~10s/km 或距离 +10%
               高强度占比 > intensity_ratio_max → 警告并下调 SOS 频次
               交叉训练影响：若本周存在高 TRIMP 的交叉训练（骑行/力量等），下周跑量强制不递增（保护性维持）。
-          7d. 补给数据收集引导（渐进式）：
+          7d. 补给数据收集引导（结合 nutrition_calc.py 算术）：
               - 若本周完成首次 >15km 长跑 → 提示补充能量胶基础知识
-              - 若本周完成首次 >20km 长跑且气温>20°C → 引导测试出汗率（跑前体重-跑后体重+饮水量）
+              - 若本周完成首次 >20km 长跑且气温>20°C → 引导用户提供跑前/跑后体重及饮水量，调用 `nutrition_calc.sweat_rate_ml_h` 与 `hydration_plan` 给出个性化补液目标（含 800ml/h 封顶告知）
 Step 8  检查是否到达 cycle_weeks 边界 → 触发 Level 3 VDOT 重评（见 Step 9）
 Step 9  Level 3 重评（每 cycle_weeks 周触发一次）：
           重新获取 GET_FITNESS_ASSESSMENT
@@ -382,10 +397,11 @@ Step 5  多比赛 Taper 差异化策略：
           - secondary B_race：轻度减量（赛前 5 天降至 80%），赛后 2 天即恢复。不影响主课表进度
 Step 6  输出赛前建议（含装备/营养/配速策略）：
           - 配速策略：基于 VDOT 精确分段配速。
-          - 补给策略：
-              1. 调用 knowledge_cards/营养/赛前碳水装载.md 给出赛前 3 天饮食建议。
-              2. 调用 knowledge_cards/营养/长跑中补给.md 给出比赛当日能量胶与饮水方案。
-              3. 汇总历史出汗率数据，若无数据则仅给基础补给框架，不捏造具体数值。
+          - 补给策略（调 `nutrition_calc.py` 算算术，AI 只复述数字）：
+              1. 调用 `nutrition_calc.fueling_plan(duration_min)` 计算能量胶支数、补给时间节点、碳水及水合目标。
+              2. 引用 `knowledge_cards/营养/赛前碳水装载.md` 给出赛前 3 天饮食建议。
+              3. 引用 `knowledge_cards/营养/长跑中补给.md` 给出比赛当日水与电解质方案。
+              4. 汇总历史出汗率数据；若无出汗率数据，给标准区间 (400-800 ml/h) 并提示「建议实测以个性化」，严禁臆造数字。
 ```
 
 ---
@@ -435,7 +451,7 @@ Step 8  输出复盘报告（格式见 S9）
 4. **心率合规**：E 跑目标心率必须落在跑者 E 区心率范围内
 5. **安全阀**：周跑量增幅不超 10%，超出截断并告知
 6. **连续强度**：连续2天高强度后，第3天强制安排 E 跑或休息
-7. **力量卡片合规**：课表中的力量动作名称必须来自 `knowledge_cards/力量/` 的对应卡片，严禁凭空编造动作。
+7. **力量动作与排除集合规**：力量动作必须来自 `动作库.md` 的 15 个动作 ID 集合，且不得命中用户排除集（`banned ∪ infeasible`）；被排除的槽位必须由同部位确定性替补填上而非留空，保证训练量不变；每部位可用动作不足 FLOOR=2 时才放宽 `banned`（`infeasible` 器材档不可行动作永不放宽）。
 8. **改量必改文案**：若当日因伤病、天气或削量调整了 distance_km 或 type，detail 描述文案必须确定性重写，严禁出现「距离 5km」但 detail 中依然保留原配速/原组数的自相矛盾情况。单次跑步不得低于 3km 下限。
 ---
 
