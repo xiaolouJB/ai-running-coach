@@ -14,11 +14,14 @@ You can run it yourself as a **Claude skill**: it reads your training history fr
 
 **Core ideas:**
 
-- ⌚ **No file uploads** — activity and physiological data come straight from the watch via MCP.
-- 🧠 **Structured knowledge cards** — injury triage (Level 0–2 grading), strength sessions, and race-day nutrition are routed from in-repo cards, not hallucinated.
-- 🏃 **VDOT from history** — fitness is estimated from your real runs; no all-out test required.
+- ⌚ **No file uploads** — activity and physiological data come straight from the watch via MCP. No watch? `parse_fit.py` turns exported FIT files into a CSV you can paste in.
+- 🧠 **Structured knowledge cards** — injury triage (Level 0–2 grading), a 15-exercise strength library with per-exercise form guides, and race nutrition are routed from in-repo cards, not hallucinated.
+- 🏃 **VDOT from history** — fitness is estimated from your real runs; no all-out test required. Out-of-range inputs raise an error instead of silently snapping to a wrong pace table.
 - 📅 **One-line weekly update** — one prompt scores last week's execution, checks fatigue, and adjusts next week.
-- 🛡️ **Safety over compliance** — resting-HR / HRV red flags and the 10% mileage rule are enforced, not suggested.
+- 🩺 **Readiness, not guesswork** — HRV drop, resting-HR spike and sleep score each raise a flag; two flags and today becomes a recovery day. Missing signals are skipped rather than assumed fine.
+- 🌡️ **Heat-aware by session type** — on a muggy day a key interval session gets moved to a cooler hour (or a treadmill) to protect the stimulus; a long run keeps its duration and just slows down; an easy run slows freely.
+- 🔢 **The LLM never does arithmetic** — VDOT, readiness and all hydration/fueling numbers come from pure functions in this repo (`vdot_calculator.py`, `readiness_calc.py`, `nutrition_calc.py`). The coach only reports what they return.
+- 🛡️ **Safety over compliance** — the 10% mileage rule, consecutive-hard-day limits and injury de-escalation are enforced, not suggested.
 - 🌍 **Fully redistributable** — no copyrighted source material included; clone it and run your own coach.
 
 ## Quick start (English)
@@ -50,8 +53,12 @@ About me:
 
 ## This repo vs. Pacer (the hosted app)
 
-- **This repo** = the methodology, as a self-hostable skill. Bring your own LLM; your data stays in your own Claude/COROS accounts.
-- **[Pacer](https://pacer.xiaolou.space/en)** = the same logic productized: one-tap COROS sign-in (official OAuth, read-only), deterministic pace/load math in code (the LLM never does arithmetic), weekly auto-review, weather- and readiness-aware daily advice. Free while early.
+The training logic is the same in both. The difference is who keeps it running.
+
+- **This repo** = the full methodology, as a self-hostable skill. Every rule, threshold and knowledge card is here in plain text for you to read, audit and change. Bring your own LLM; your data stays in your own Claude/COROS accounts. You drive it — you say "update this week" and it runs.
+- **[Pacer](https://pacer.xiaolou.space/en)** = the same logic, productized so it runs *without you asking*: one-tap COROS sign-in (official OAuth, read-only), automatic sync and weekly review on a schedule, daily pre-run advice in your inbox, memory that accumulates across months, and a mobile UI. Free while early.
+
+In short: **this repo tells you how to train; Pacer keeps it going on its own.**
 
 > **Language note**: the detailed docs below are currently in Chinese (an English pass is in progress). The skill itself works fine in English conversations — the coach replies in whatever language you use.
 
@@ -66,13 +73,16 @@ About me:
 AI Running Coach 是一个运行在 Claude 上的跑步训练 Skill。它通过高驰（COROS）MCP 实时读取你的手表数据，结合丹尼尔斯、汉森、80/20 三大经典训练理论，**并通过独创的分层知识卡片库涵盖了伤病康复、力量体能和运动营养**，为你生成和动态调整专属训练计划。
 
 **核心特点：**
-- ⌚ **无需上传文件**——直接通过 MCP 从手表读取实时运动记录和生理数据。
-- 🧠 **内置专业知识卡片（v2.1 新特性）**——自带涵盖伤病诊断、力量动作、赛事营养的结构化知识卡片。无需笨重的外挂数据库，AI 即可在对话中精准路由并调用。
-- 🏃 **免去繁琐测试**——AI 从运动历史自动推算 VDOT，无需单独安排全力测试跑。
+- ⌚ **无需上传文件**——直接通过 MCP 从手表读取实时运动记录和生理数据。没有高驰手表也能用：`parse_fit.py` 把导出的 FIT 文件解析成 CSV 走手动模式。
+- 🧠 **内置专业知识卡片**——伤病分级诊断、**15 个力量动作库（含分步要领、常见错误、跑者专项 cue、呼吸）**、赛事营养，全部结构化路由调用。无需外挂向量数据库。
+- 🏃 **免去繁琐测试**——AI 从运动历史自动推算 VDOT，无需单独安排全力测试跑。成绩填错、超出对照表范围时会直接报错，而不是悄悄给你一套错配速。
 - 📅 **每周一句话更新**——`更新本周训练数据` 即可完成课表执行度打分、疲劳判断和下周计划自动调整。
-- 🛡️ **伤病与疲劳保护机制**——实时监控静息心率与 HRV，结合专业的伤病分级模型（Level 0-2），察觉过载立刻干预。
-- 📊 **一键生成周打卡图**——`生成本周打卡图` 输出 1080×1440 小红书规格分享图，含课表实录、AI 复盘、下周预览，支持导出 PNG。
-- 🌍 **全量合规开源**——去除了训练理论原始版权材料的依赖，彻底清除了分发障碍，任何人都可以一键克隆并部署自己的专属教练。
+- 🩺 **身体准备度多信号判定**——HRV 跌幅、静息心率升幅、睡眠分各记一面红旗，两面即换恢复日。**某项没测到就跳过、不当作正常**，也不会因为少一项数据就误报警。
+- 🌡️ **按课型的湿热调整**——桑拿天里，关键间歇课优先挪到凉爽时段或跑步机以保住训练刺激；长跑保时长只放慢；轻松跑随便慢。不是一热就砍量。
+- 🔢 **确定性算术不交给 AI**——VDOT、准备度、补水补给的全部数字由仓库内纯函数算出（`vdot_calculator.py` / `readiness_calc.py` / `nutrition_calc.py`），教练只负责复述，**不做心算**。
+- 🛡️ **伤病与疲劳保护**——10% 递增法则、连续高强度限制、伤病降级（含"改了距离必须同步改文案"）均为强制执行而非建议。
+- 📊 **一键生成周打卡图**——`生成本周打卡图` 输出 1080×1440 分享图，含课表实录、AI 复盘、下周预览，支持导出 PNG。
+- 🌍 **全量合规开源**——不含任何版权原文材料，任何人都可以克隆并运行自己的专属教练。
 
 ---
 
@@ -164,10 +174,17 @@ ai-running-coach/
 ├── USER_GUIDE.md         # 用户操作手册（所有用户必读）
 ├── 快捷指令.md            # 四大场景快捷模板（复制即用）
 ├── SKILL.md              # AI 教练核心规范（AI 自动读取）
-├── THEORY_LIBRARY.md     # 训练理论知识库大纲（v2.1+）
-├── knowledge_cards/      # 分层知识卡片库（伤病/力量/营养，AI 按需路由调用）
+├── CHANGELOG.md          # 版本更新日志
+├── THEORY_LIBRARY.md     # 训练理论知识库大纲
+├── knowledge_cards/      # 分层知识卡片库（AI 按需路由调用）
+│   ├── 伤病/             # 6 张：分级诊断 + 康复动作 + 课表降级
+│   ├── 力量/             # 动作库(15动作) + 动作指引 + 分期方案
+│   └── 营养/             # 4 张：日常/赛前装载/赛中补给/赛后恢复
+├── vdot_calculator.py    # VDOT 查表与五区配速（越界报错，不静默钳制）
+├── readiness_calc.py     # 身体准备度多信号红旗判定
+├── nutrition_calc.py     # 出汗率/补液/补钠/碳水/能量胶算术
 ├── parse_fit.py          # 本地 FIT 文件解析工具（手动模式入口）
-├── ADAPTERS.md           # 设备适配器配置（开发者参考）
+├── ADAPTERS.md           # 设备适配器配置（22 个 COROS MCP 工具映射）
 ├── CONTRIBUTING.md       # 贡献指南（开发者）
 ├── 赘肉.md               # 归档内容（AI 不读取）
 ├── schedules/
