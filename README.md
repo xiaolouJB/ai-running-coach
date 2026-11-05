@@ -8,7 +8,7 @@
 
 ## What is this?
 
-This repo is the **open methodology layer** behind [Pacer](https://pacer.xiaolou.space/en), a hosted AI running coach. Everything the coach "believes" about training lives here in auditable form: the workflow rules, the pace/load math conventions, and a structured knowledge-card library covering injury rehab, strength work, and race nutrition.
+This repo is the **open methodology layer** behind [Pacer](https://run2ai.cn/en), a hosted AI running coach. Everything the coach "believes" about training lives here in auditable form: the workflow rules, the pace/load math conventions, and a structured knowledge-card library covering injury rehab, strength work, and race nutrition.
 
 You can run it yourself as a **Claude skill**: it reads your training history from a COROS watch via COROS's official MCP server (read-only), estimates your VDOT from real runs (no time-trial needed), and generates a race training plan built on three classic methodologies — then re-scores and adjusts it every week based on what you actually ran.
 
@@ -51,14 +51,21 @@ About me:
 | 80/20 intensity split | Matt Fitzgerald, *80/20 Running* (2014) | Keeps you out of the gray zone |
 | 10% progression rule | Hal Higdon, *Marathon* (2011) | Safe ramp-up and taper |
 
-## This repo vs. Pacer (the hosted app)
+## This repo vs. PACER (the hosted Web service)
 
-The training logic is the same in both. The difference is who keeps it running.
+This repository is an **open-source Skill** that you run in a compatible MCP/Skill environment with your own model, data authorization and runtime. Its installation and device/environment support tables describe the Skill.
 
-- **This repo** = the full methodology, as a self-hostable skill. Every rule, threshold and knowledge card is here in plain text for you to read, audit and change. Bring your own LLM; your data stays in your own Claude/COROS accounts. You drive it — you say "update this week" and it runs.
-- **[Pacer](https://pacer.xiaolou.space/en)** = the same logic, productized so it runs *without you asking*: one-tap COROS sign-in (official OAuth, read-only), automatic sync and weekly review on a schedule, daily pre-run advice in your inbox, memory that accumulates across months, and a mobile UI. Free while early.
+**[PACER AI Running Coach](https://run2ai.cn/)** is the hosted Web service for runners with half-marathon or marathon experience who want a new personal best. Use email to register or sign in, then authorize a supported training-data source:
 
-In short: **this repo tells you how to train; Pacer keeps it going on its own.**
+- **COROS:** direct authorized access to training data and workout delivery.
+- **Polar:** direct authorized access to training data; workout delivery is not supported.
+- **Other supported devices:** connect through intervals.icu; data reading and workout delivery each depend on its actual platform/device support and authorization.
+
+PACER provides a free trial. Continuing AI coaching, plan generation and other membership features after the trial requires a paid membership. Current account, device, pricing and expiry details: **[PACER FAQ](https://run2ai.cn/faq)**.
+
+The Skill and hosted service share public training methodology, but their model/configuration, integrations, available features and running costs differ. They do not promise identical generated results. An open-source license does not make the hosted membership permanently free.
+
+中文说明：本仓库是自行运行的开源 Skill；PACER（run2ai.cn）是面向半马/全马进阶跑者的托管 Web 服务，使用邮箱注册或登录。高驰支持直连读取与课表推送，Polar 直连只读；其他支持设备通过 intervals.icu 接入，读写能力分别以其实际支持为准。托管服务提供免费试用，试用后会员功能需付费；现行价格、权益及设备条件见[官网 FAQ](https://run2ai.cn/faq)。本仓库的支持表和自行运行成本不等同于托管产品。
 
 > **Language note**: the detailed docs below are currently in Chinese (an English pass is in progress). The skill itself works fine in English conversations — the coach replies in whatever language you use.
 
